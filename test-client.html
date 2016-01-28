@@ -1,0 +1,63 @@
+<DOCTYPE html>
+<html>
+<head>
+    <title>Test Client</title>
+    <link rel="stylesheet" type="text/css" href="/assets/css/bootstrap" />
+</head>
+<body>
+    <div id="content">
+        <div class="container-fluid">
+            <div class="row-fluid">
+                <div class="col-xs-12 col-sm-6 col-md-6">
+                    Test Client
+                    <input type="text" id="client-id" />
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="/assets/js/underscore"></script>
+    <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="/assets/js/io-addon.js"></script>
+    <script type="text/javascript" src="/assets/js/angular"></script>
+    <script type="text/javascript" src="/assets/js/jquery"></script>
+    <script type="text/javascript" src="/assets/js/bootstrap"></script>
+    <script type="text/javascript">
+        // connect to the socket server
+        var socket = io();
+        $(document).ready(function() {
+            // show random number to indicate new connection
+            console.log(Math.random());
+
+            $('#client-id').on('change', function() {
+                socket.emit('client:id:update', $(this).val());
+            });
+
+            // reload the page on reconnection
+            socket.on('reconnect', function() {
+                console.log('RECONNECTED');
+                setTimeout(function() {
+                    location.reload();
+                }, 1000);
+            });
+
+            socket.on('RIGHTEOUS', function() {
+
+            });
+
+            socket.on('kabla:return', function() {
+                console.log('KABLA RETURNED!');
+            });
+
+            setInterval(function() {
+                socket.emit('kabla', {
+                    blergh: 'blerghStuff',
+                    hehe: 'haha'
+                });
+                
+                socket.emit('kabla' + Math.random());
+            }, 3000);
+        });
+    </script>
+</body>
+</html>

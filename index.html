@@ -1,0 +1,181 @@
+<DOCTYPE html>
+<html>
+<head>
+    <title>SocketDash</title>
+    <link rel="stylesheet" type="text/css" href="/assets/css/bootstrap" />
+    <link rel="stylesheet" type="text/css" href="/assets/css/font-awesome" />
+    <link href='https://fonts.googleapis.com/css?family=Open+Sans' rel='stylesheet' type='text/css' />
+    <link rel="stylesheet" type="text/css" href="/assets/css/dashboard.css" />
+</head>
+<body ng-app="socketDash">
+    <div id="content" ng-controller="DashboardCtrl">
+        <div class="panels">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-xs-12 col-sm-6 col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Server <i class="fa fa-arrow-right"></i> Client
+                                <span class="pull-right">{{numServerEmits}}</span>
+                            </div>
+                            <div id="server-emit-events-panel" class="panel-body dashboard-panel fixed-panel">
+                                <div class="socket-data {{activeDetails.eventId == event.eventId ? 'active' : ''}}" ng-click="setActiveEvent(event)" ng-repeat="event in serverEmitEvents">
+                                    <div class="row">
+                                        <div class="col-xs-12 col-md-4">
+                                            <div class="one-line">
+                                                {{event.timestamp}}
+                                            </div>
+                                        </div>
+                                        <div class="col-xs-12 col-md-4">
+                                            <div class="one-line">
+                                                {{clients[event.socketId].clientId}}
+                                            </div>
+                                        </div>
+                                        <div class="col-xs-12 col-md-4">
+                                            <div class="one-line">
+                                                {{event.event}}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-12 col-sm-6 col-md-6">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Client <i class="fa fa-arrow-right"></i> Server
+                                <span class="pull-right">{{numClientEmits}}</span>
+                            </div>
+                            <div id="client-emit-events-panel" class="panel-body dashboard-panel fixed-panel">
+                                <div class="socket-data {{activeDetails.eventId == event.eventId ? 'active' : ''}}" ng-click="setActiveEvent(event)" ng-repeat="event in clientEmitEvents">
+                                    <div class="row">
+                                        <div class="col-xs-12 col-md-4">
+                                            <div class="one-line">
+                                                {{event.timestamp}}
+                                            </div>
+                                        </div>
+                                        <div class="col-xs-12 col-md-4">
+                                            <div class="one-line">
+                                                {{clients[event.socketId].clientId}}
+                                            </div>
+                                        </div>
+                                        <div class="col-xs-12 col-md-4">
+                                            <div class="one-line">
+                                                {{event.event}}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-12 col-sm-6 col-md-4">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Details <span class="label label-success">{{clients[activeClient].clientId}}</span></div>
+                            <div id="details-panel" class="panel-body dashboard-panel fixed-panel">
+                                <div class="detail-data" ng-repeat="(key, value) in activeDetails">
+                                    <div class="row">
+                                        <div class="col-xs-12 col-md-6">
+                                            <div>
+                                                {{key}}
+                                            </div>
+                                        </div>
+                                        <div class="col-xs-12 col-md-6">
+                                            <div>
+                                                {{value}}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div ng-if="activeDetails">
+                                    <button id="btn-log-details" class="btn btn-sm btn-default" ng-click="logDetails()">Log Details in Console</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-12 col-sm-6 col-md-4">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Server Event Listeners</div>
+                            <div id="server-on-events-panel" class="panel-body dashboard-panel fixed-panel">
+                                <div ng-repeat="event in serverOnEvents">{{event.name}}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-12 col-sm-6 col-md-4">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Client Event Listeners</div>
+                            <div id="client-on-events-panel" class="panel-body dashboard-panel fixed-panel">
+                                <div ng-repeat="event in clientOnEvents">{{event.name}}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="sidebar">
+            <div class="container-fluid">
+                <div class="row">
+                    <div class="col-xs-12">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Server
+                            </div>
+                            <div id="server-panel" class="panel-body dashboard-panel">
+                                Online: <span class="pull-right">{{serverUptime}}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-xs-12">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">
+                                Clients
+                                <div class="pull-right">{{numClients}}</div>
+                            </div>
+                            <div id="clients-panel" class="panel-body dashboard-panel">
+                                <div class="client" ng-repeat="client in clients">
+                                    <i class="fa fa-user"></i> {{client.clientId}}
+                                </div>
+                                <div class="btn-log-container">
+                                    <button class="btn btn-sm btn-block btn-default" ng-click="logClients()">Log Clients in Console</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-xs-12">
+                        <div class="panel panel-default">
+                            <div class="panel-heading">Rooms</div>
+                            <div id="rooms-panel" class="panel-body dashboard-panel">
+                                <div ng-repeat="room in rooms">
+                                    <span class="label label-default label-key">{{room.room}}</span>
+                                    <span class="label label-default">{{room.users.length}}</span>
+                                    <div class="room-user" ng-repeat="user in room.users">
+                                        <i class="fa fa-user"> {{clients[user].clientId}}</i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-xs-12">
+                        <div>Socket: {{socketId}}</div>
+                        <div>Client: {{clientId}}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript" src="/assets/js/underscore"></script>
+    <script type="text/javascript" src="/socket.io/socket.io.js"></script>
+    <script type="text/javascript" src="/assets/js/io-addon.js"></script>
+    <script type="text/javascript" src="/assets/js/angular"></script>
+    <script type="text/javascript" src="/assets/js/jquery"></script>
+    <script type="text/javascript" src="/assets/js/bootstrap"></script>
+    <script type="text/javascript" src="/assets/js/moment"></script>
+    <script type="text/javascript" src="/assets/js/dashboard.js"></script>
+</body>
+</html>
