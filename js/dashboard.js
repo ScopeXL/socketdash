@@ -13,6 +13,9 @@ app.controller('DashboardCtrl', ['$scope',
         var ignoreDashboard = true;
         // server start time (sent when the dashboard connects)
         var serverStartedAt;
+        // temporary client/server emit counts used for charting data
+        var tmpClientEmits = 0;
+        var tmpServerEmits = 0;
         // emit event array
         $scope.serverEmitEvents = [];
         $scope.clientEmitEvents = [];
@@ -129,6 +132,9 @@ app.controller('DashboardCtrl', ['$scope',
         });
 
         socket.on('server:emit:event', function(data) {
+            // increase temporary emit count for charting
+            tmpServerEmits++;
+
             updatePanel('serverEmitEvent', data, {
                 maxItems: 50,
                 allowDuplicates: true
@@ -136,6 +142,9 @@ app.controller('DashboardCtrl', ['$scope',
         }, ignoreDashboard);
 
         socket.on('client:emit:event', function(data) {
+            // increase temporary emit count for charting
+            tmpClientEmits++;
+
             updatePanel('clientEmitEvent', data, {
                 maxItems: 50,
                 allowDuplicates: true
@@ -168,7 +177,7 @@ app.controller('DashboardCtrl', ['$scope',
                 opts.maxItems = 0;
             }
 
-            switch(panelType) {
+            switch (panelType) {
                 case 'serverEmitEvent':
                     panelArr = $scope.serverEmitEvents;
                     panelElem = '#server-emit-events-panel';
@@ -210,5 +219,110 @@ app.controller('DashboardCtrl', ['$scope',
             // scroll to bottom
             //$(panelElem).scrollTop($(panelElem)[0].scrollHeight);
         }
+
+        Highcharts.setOptions({
+            global: {
+                useUTC: false
+            }
+        });
+
+        // Create the chart
+        $('#chart').highcharts('StockChart', {
+            chart: {
+                events: {
+                    load: function() {
+                        // set up the updating of the chart each second
+                        var series = this.series;
+                        setInterval(function() {
+                            var x = (new Date()).getTime(); // current time
+                            series[0].addPoint([x, tmpClientEmits], true, true);
+                            series[1].addPoint([x, tmpServerEmits], true, true);
+
+                            // reset the temporary emit counters
+                            tmpClientEmits = 0;
+                            tmpServerEmits = 0;
+                        }, 10000);
+                    }
+                }
+            },
+
+            rangeSelector: {
+                buttons: [{
+                    count: 1,
+                    type: 'minute',
+                    text: '1M'
+                }, {
+                    count: 5,
+                    type: 'minute',
+                    text: '5M'
+                }, {
+                    count: 10,
+                    type: 'minute',
+                    text: '10M'
+                }, {
+                    count: 15,
+                    type: 'minute',
+                    text: '15M'
+                }, {
+                    count: 30,
+                    type: 'minute',
+                    text: '30M'
+                }, {
+                    count: 1,
+                    type: 'hour',
+                    text: '1H'
+                }, {
+                    type: 'all',
+                    text: 'All'
+                }],
+                inputEnabled: false,
+                selected: 0
+            },
+
+            exporting: {
+                enabled: false
+            },
+
+            scrollbar: {
+                enabled: false
+            },
+
+            series: [
+                {
+                    name: 'Client',
+                    data: (function() {
+                        // generate an array of random data
+                        var data = [];
+                        var time = (new Date()).getTime();
+
+                        for (i = -999; i <= 0; i += 1) {
+                            data.push([
+                                time + i * 1000,
+                                1
+                                //Math.round(Math.random() * 100)
+                            ]);
+                        }
+                        return data;
+                    }())
+                },
+                {
+                    name: 'Server',
+                    data: (function() {
+                        // generate an array of random data
+                        var data = [];
+                        var time = (new Date()).getTime();
+
+                        for (i = -999; i <= 0; i += 1) {
+                            data.push([
+                                time + i * 1000,
+                                2
+                                //Math.round(Math.random() * 100)
+                            ]);
+                        }
+                        return data;
+                    }())
+                },
+            ]
+        });
     }
 ]);
