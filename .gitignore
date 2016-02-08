@@ -34,3 +34,4 @@ node_modules
 
 # SQLite database
 lib/db.sqlite3
+lib/db.sqlite3-journal
