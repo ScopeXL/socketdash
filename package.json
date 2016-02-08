@@ -11,6 +11,7 @@
     "jquery": "^2.2.0",
     "moment": "^2.11.1",
     "socket.io": "^1.4.0",
+    "sqlite3": "^3.1.1",
     "underscore": "^1.8.3"
   }
 }

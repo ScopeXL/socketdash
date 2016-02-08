@@ -41,6 +41,12 @@ io = function(url, opts) {
         }
     };
 
+    // set the clientId of the socket if the user specified it during connection
+    if (!_.isUndefined(opts) && !_.isUndefined(opts.nickname)) {
+        console.log(opts.nickname);
+        result.emit('client:id:update', opts.nickname);
+    }
+
     return result;
 
 }

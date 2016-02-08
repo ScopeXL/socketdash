@@ -3,7 +3,8 @@ var app = require('express')(),
     io = require('socket.io')(http),
     _ = require('underscore'),
     moment = require('moment'),
-    routes = require('./lib/routes.js')(app);
+    routes = require('./lib/routes.js')(app),
+    db = require('./lib/db.js')();
 
 // hold events in here to allocate to each socket once connected
 var socketEvents = [];
@@ -43,6 +44,9 @@ module.exports = function() {
         socket.emit = function(eventName, data, ignore) {
             // only send events not emitted by the dashboard client
             if ((_.isUndefined(ignore)) || (_.isBoolean(ignore) && !ignore)) {
+                // save to db
+                db.addServerEmit(moment().unix(), socket.clientId, eventName, data);
+                // send to dashboard
                 io.to(dashboardClient).emit('server:emit:event', {
                     socketId: socket.id,
                     event: eventName,
@@ -64,10 +68,19 @@ module.exports = function() {
         // set dashboard client to emit events to
         socket.on('client:dashboard:set', function() {
             dashboardClient = socket.id;
-            io.to(dashboardClient).emit('client:dashboard:init', {
-                clientId: socket.clientId,
-                uptime: started_at
+            // get emit chart data
+            db.getEmitChart(function(serverChartData, clientChartData) {
+                db.getServerEmitsForClient(function(clientServerEmits) {
+                    io.to(dashboardClient).emit('client:dashboard:init', {
+                        clientId: socket.clientId,
+                        uptime: started_at,
+                        serverChartData: serverChartData,
+                        clientChartData: clientChartData,
+                        clientServerEmits: clientServerEmits
+                    });
+                });
             });
+
 
             console.log('set dashboard client');
             getRoomData();
@@ -87,7 +100,10 @@ module.exports = function() {
         // when a client emits an event
         socket.on('client:emit', function(data) {
             // ignore client:on emit
-            if (!_.isEqual(data.eventName, 'client:on')) {
+            if (!_.isEqual(data.event, 'client:on')) {
+                // save to db
+                db.addClientEmit(moment().unix(), socket.clientId, data.event, data);
+
                 io.to(dashboardClient).emit('client:emit:event', data);
                 // increase the emit count for server emits
                 io.to(dashboardClient).emit('client:emit:count', increaseEmit('client'));
@@ -109,6 +125,11 @@ module.exports = function() {
             };
             io.to(dashboardClient).emit('client:data', data);
         }, ignoreDashboard);
+
+        /*socket.on('chart:emits:plot', function(data) {
+            // save to database
+            db.addEmitChart(data.timestamp, data.clientEmits, data.serverEmits);
+        });*/
 
         // remove a connected client on disconnect and alert the dashboard client
         socket.on('disconnect', function() {

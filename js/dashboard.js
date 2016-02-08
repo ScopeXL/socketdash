@@ -16,6 +16,8 @@ app.controller('DashboardCtrl', ['$scope',
         // temporary client/server emit counts used for charting data
         var tmpClientEmits = 0;
         var tmpServerEmits = 0;
+        // chart for emit events
+        var chart;
         // emit event array
         $scope.serverEmitEvents = [];
         $scope.clientEmitEvents = [];
@@ -32,6 +34,23 @@ app.controller('DashboardCtrl', ['$scope',
         setInterval(function() {
             $scope.serverUptime = moment(serverStartedAt).fromNow(true);
         }, 1000);
+
+        setInterval(function() {
+            var x = moment().unix(); // current time
+            chart.series[0].addPoint([x * 1000, tmpClientEmits], true, true);
+            chart.series[1].addPoint([x * 1000, tmpServerEmits], true, true);
+
+            // save the plotted point to be used later
+            /*socket.emit('chart:emits:plot', {
+                timestamp: x,
+                clientEmits: tmpClientEmits,
+                serverEmits: tmpServerEmits
+            });*/
+
+            // reset the temporary emit counters
+            tmpClientEmits = 0;
+            tmpServerEmits = 0;
+        }, 10000);
 
         // Fetch event data
         $scope.setActiveEvent = function(ev) {
@@ -78,6 +97,113 @@ app.controller('DashboardCtrl', ['$scope',
             serverStartedAt = data.uptime;
             $scope.clientId = data.clientId;
             $scope.$apply();
+
+            console.log(data.clientServerEmits);
+            $('#user-chart').highcharts('StockChart', {
+                chart: {
+                    alignTicks: false
+                },
+
+                rangeSelector: {
+                    selected: 1
+                },
+
+                title: {
+                    text: 'AAPL Stock Volume'
+                },
+
+                series: [{
+                    type: 'column',
+                    name: 'AAPL Stock Volume',
+                    data: data.clientServerEmits,
+                    dataGrouping: {
+                        units: [[
+                            'hour', // unit name
+                            [1] // allowed multiples
+                        ], [
+                            'month',
+                            [1, 2, 3, 4, 6]
+                        ]]
+                    }
+                }]
+            });
+
+            // Create the chart
+            var chartOptions = {
+                chart: {
+                    alignTicks: true
+                },
+                xAxis: {
+                    labels: {
+                        rotation: -45
+                    },
+                    alternateGridColor: '#eee',
+                    dateTimeLabelFormats: {
+                        millisecond: '%H:%M:%S.%L',
+                    	second: '%H:%M:%S',
+                    	minute: '%l:%M%P',
+                    	hour: '%I:%M%P',
+                    	day: '%e. %b',
+                    	week: '%e. %b',
+                    	month: '%b \'%y',
+                    	year: '%Y'
+                    }
+                },
+                rangeSelector: {
+                    buttons: [{
+                        count: 1,
+                        type: 'minute',
+                        text: '1M'
+                    }, {
+                        count: 5,
+                        type: 'minute',
+                        text: '5M'
+                    }, {
+                        count: 10,
+                        type: 'minute',
+                        text: '10M'
+                    }, {
+                        count: 15,
+                        type: 'minute',
+                        text: '15M'
+                    }, {
+                        count: 30,
+                        type: 'minute',
+                        text: '30M'
+                    }, {
+                        count: 1,
+                        type: 'hour',
+                        text: '1H'
+                    }, {
+                        type: 'all',
+                        text: 'All'
+                    }],
+                    inputEnabled: false,
+                    selected: 3
+                },
+
+                exporting: {
+                    enabled: false
+                },
+
+                scrollbar: {
+                    enabled: false
+                },
+
+                series: [
+                    {
+                        name: 'Client',
+                        data: data.clientChartData
+                    },
+                    {
+                        name: 'Server',
+                        data: data.serverChartData
+                    },
+                ]
+            };
+
+            $('#chart').highcharts('StockChart', chartOptions);
+            chart = $('#chart').highcharts();
         }, ignoreDashboard);
 
         // client has a new id
@@ -88,8 +214,6 @@ app.controller('DashboardCtrl', ['$scope',
                     client.clientId = data.newId;
                 }
             });
-
-            // update rooms
 
             $scope.$apply();
         }, ignoreDashboard);
@@ -224,105 +348,6 @@ app.controller('DashboardCtrl', ['$scope',
             global: {
                 useUTC: false
             }
-        });
-
-        // Create the chart
-        $('#chart').highcharts('StockChart', {
-            chart: {
-                events: {
-                    load: function() {
-                        // set up the updating of the chart each second
-                        var series = this.series;
-                        setInterval(function() {
-                            var x = (new Date()).getTime(); // current time
-                            series[0].addPoint([x, tmpClientEmits], true, true);
-                            series[1].addPoint([x, tmpServerEmits], true, true);
-
-                            // reset the temporary emit counters
-                            tmpClientEmits = 0;
-                            tmpServerEmits = 0;
-                        }, 10000);
-                    }
-                }
-            },
-
-            rangeSelector: {
-                buttons: [{
-                    count: 1,
-                    type: 'minute',
-                    text: '1M'
-                }, {
-                    count: 5,
-                    type: 'minute',
-                    text: '5M'
-                }, {
-                    count: 10,
-                    type: 'minute',
-                    text: '10M'
-                }, {
-                    count: 15,
-                    type: 'minute',
-                    text: '15M'
-                }, {
-                    count: 30,
-                    type: 'minute',
-                    text: '30M'
-                }, {
-                    count: 1,
-                    type: 'hour',
-                    text: '1H'
-                }, {
-                    type: 'all',
-                    text: 'All'
-                }],
-                inputEnabled: false,
-                selected: 0
-            },
-
-            exporting: {
-                enabled: false
-            },
-
-            scrollbar: {
-                enabled: false
-            },
-
-            series: [
-                {
-                    name: 'Client',
-                    data: (function() {
-                        // generate an array of random data
-                        var data = [];
-                        var time = (new Date()).getTime();
-
-                        for (i = -999; i <= 0; i += 1) {
-                            data.push([
-                                time + i * 1000,
-                                1
-                                //Math.round(Math.random() * 100)
-                            ]);
-                        }
-                        return data;
-                    }())
-                },
-                {
-                    name: 'Server',
-                    data: (function() {
-                        // generate an array of random data
-                        var data = [];
-                        var time = (new Date()).getTime();
-
-                        for (i = -999; i <= 0; i += 1) {
-                            data.push([
-                                time + i * 1000,
-                                2
-                                //Math.round(Math.random() * 100)
-                            ]);
-                        }
-                        return data;
-                    }())
-                },
-            ]
         });
     }
 ]);

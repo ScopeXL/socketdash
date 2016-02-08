@@ -24,7 +24,7 @@
     <script type="text/javascript" src="/assets/js/bootstrap"></script>
     <script type="text/javascript">
         // connect to the socket server
-        var socket = io();
+        var socket = io(null, { nickname: 'blergh' });
         $(document).ready(function() {
             // show random number to indicate new connection
             console.log(Math.random());
@@ -54,7 +54,7 @@
                     blergh: 'blerghStuff',
                     hehe: 'haha'
                 });
-                
+
                 socket.emit('kabla' + Math.random());
             }, 3000);
         });
