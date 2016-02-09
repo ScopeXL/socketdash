@@ -139,7 +139,7 @@
                                 <div class="pull-right">{{numClients}}</div>
                             </div>
                             <div id="clients-panel" class="panel-body dashboard-panel">
-                                <div class="client" ng-repeat="client in clients">
+                                <div class="client {{client.filtered ? 'active' : ''}}" ng-click="getClientData(client)" ng-repeat="client in clients">
                                     <i class="fa fa-user"></i> {{client.clientId}}
                                 </div>
                                 <div class="btn-log-container">

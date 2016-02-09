@@ -133,8 +133,18 @@ body {
         border-top: 1px solid #ccc;
         padding: 5px;
 
+        &:hover {
+            cursor: pointer;
+            color: #aaa;
+        }
+
         &:first-child {
             border-top: none;
+        }
+
+        &.active {
+            background: #ccc;
+            color: #333;
         }
 
         i {

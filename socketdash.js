@@ -3,6 +3,7 @@ var app = require('express')(),
     io = require('socket.io')(http),
     _ = require('underscore'),
     moment = require('moment'),
+    promise = require('promise'),
     routes = require('./lib/routes.js')(app),
     db = require('./lib/db.js')();
 
@@ -22,6 +23,8 @@ var ignoreDashboard = true;
 var numServerEmits = 0;
 // amount of client emit events
 var numClientEmits = 0;
+// filter data by client
+var filterClient = null;
 
 module.exports = function() {
     io.on('connection', function(socket) {
@@ -54,7 +57,7 @@ module.exports = function() {
                     eventId: newEventId()
                 });
                 // increase the emit count for server emits
-                io.to(dashboardClient).emit('server:emit:count', increaseEmit('server'));
+                //io.to(dashboardClient).emit('server:emit:count', increaseEmit('server'));
             }
             var result = orig_socket_emit.apply(this, [eventName, data]);
             return result;
@@ -68,24 +71,48 @@ module.exports = function() {
         // set dashboard client to emit events to
         socket.on('client:dashboard:set', function() {
             dashboardClient = socket.id;
+            var currentTimestamp = moment();
             // get emit chart data
-            db.getEmitChart(function(serverChartData, clientChartData) {
-                db.getServerEmitsForClient(function(clientServerEmits) {
-                    io.to(dashboardClient).emit('client:dashboard:init', {
-                        clientId: socket.clientId,
-                        uptime: started_at,
-                        serverChartData: serverChartData,
-                        clientChartData: clientChartData,
-                        clientServerEmits: clientServerEmits
-                    });
+            promise.all([
+                db.getTotalServerEmits(),
+                db.getTotalClientEmits(),
+                db.getServerEmitsChartData(currentTimestamp),
+                db.getClientEmitsChartData(currentTimestamp),
+                db.getServerEmitsForClientChartData(),
+                db.getClientEmitsForClientChartData()
+            ]).then(function(res) {
+                io.to(dashboardClient).emit('client:dashboard:init', {
+                    clientId: socket.clientId,
+                    uptime: started_at,
+                    serverChartData: res[2],
+                    clientChartData: res[3],
+                    clientServerEmits: res[4],
+                    clientClientEmits: res[5],
+                    totalServerEmits: res[0],
+                    totalClientEmits: res[1]
                 });
             });
-
 
             console.log('set dashboard client');
             getRoomData();
             getClientData();
         }, ignoreDashboard);
+
+        // get the client chart data
+        socket.on('client:chart:get', function() {
+            getClientChart();
+        }, ignoreDashboard);
+
+        // only return data based on a particular client
+        socket.on('client:data:filter', function(client) {
+            if (_.isUndefined(client) || _.isNull(client)) {
+                filterClient = null;
+            } else {
+                filterClient = client;
+            }
+
+            getClientChart();
+        });
 
         // change a client id
         socket.on('client:id:update', function(newId) {
@@ -106,7 +133,7 @@ module.exports = function() {
 
                 io.to(dashboardClient).emit('client:emit:event', data);
                 // increase the emit count for server emits
-                io.to(dashboardClient).emit('client:emit:count', increaseEmit('client'));
+                //io.to(dashboardClient).emit('client:emit:count', increaseEmit('client'));
             }
         }, ignoreDashboard);
 
@@ -139,6 +166,19 @@ module.exports = function() {
 
         // join the main room
         socket.join('mainRoom');
+
+        // get client chart
+        function getClientChart() {
+            promise.all([
+                db.getServerEmitsForClientChartData(filterClient === null ? null : filterClient.clientId),
+                db.getClientEmitsForClientChartData(filterClient === null ? null : filterClient.clientId)
+            ]).then(function(res) {
+                io.to(dashboardClient).emit('client:chart:update', {
+                    serverData: res[0],
+                    clientData: res[1]
+                });
+            });
+        }
 
         // get rooms and connected clients
         function getRoomData() {
