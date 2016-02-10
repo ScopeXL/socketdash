@@ -31,12 +31,26 @@ module.exports = function() {
         // override socket.on to include dashboard properties
         var orig_socket_on = socket.on;
         socket.on = function(eventName, callback, ignore) {
+            console.log('on called ' + eventName);
             // only send events not emitted by the dashboard client
             if ((_.isUndefined(ignore)) || (_.isBoolean(ignore) && !ignore)) {
-                io.to(dashboardClient).emit('server:on:event', {
-                    socketId: socket.id,
-                    name: eventName
-                });
+                var sendToDashboard = false;
+
+                if (_.isUndefined(filterClient) || _.isNull(filterClient)) {
+                    sendToDashboard = true;
+                } else {
+                    // only send to dashboard if the client IDs match
+                    if (_.isEqual(filterClient.clientId, socket.clientId)) {
+                        sendToDashboard = true;
+                    }
+                }
+
+                if (sendToDashboard) {
+                    io.to(dashboardClient).emit('server:on:event', {
+                        socketId: socket.id,
+                        name: eventName
+                    });
+                }
             }
             var result = orig_socket_on.apply(this, [eventName, callback]);
             return result;
@@ -49,15 +63,26 @@ module.exports = function() {
             if ((_.isUndefined(ignore)) || (_.isBoolean(ignore) && !ignore)) {
                 // save to db
                 db.addServerEmit(moment().unix(), socket.clientId, eventName, data);
-                // send to dashboard
-                io.to(dashboardClient).emit('server:emit:event', {
-                    socketId: socket.id,
-                    event: eventName,
-                    data: data,
-                    eventId: newEventId()
-                });
-                // increase the emit count for server emits
-                //io.to(dashboardClient).emit('server:emit:count', increaseEmit('server'));
+                var sendToDashboard = false;
+
+                if (_.isUndefined(filterClient) || _.isNull(filterClient)) {
+                    sendToDashboard = true;
+                } else {
+                    // only send to dashboard if the client IDs match
+                    if (_.isEqual(filterClient.clientId, socket.clientId)) {
+                        sendToDashboard = true;
+                    }
+                }
+
+                if (sendToDashboard) {
+                    // send to dashboard
+                    io.to(dashboardClient).emit('server:emit:event', {
+                        socketId: socket.id,
+                        event: eventName,
+                        data: data,
+                        eventId: newEventId()
+                    });
+                }
             }
             var result = orig_socket_emit.apply(this, [eventName, data]);
             return result;
@@ -130,19 +155,42 @@ module.exports = function() {
             if (!_.isEqual(data.event, 'client:on')) {
                 // save to db
                 db.addClientEmit(moment().unix(), socket.clientId, data.event, data);
+                var sendToDashboard = false;
 
-                io.to(dashboardClient).emit('client:emit:event', data);
-                // increase the emit count for server emits
-                //io.to(dashboardClient).emit('client:emit:count', increaseEmit('client'));
+                if (_.isUndefined(filterClient) || _.isNull(filterClient)) {
+                    sendToDashboard = true;
+                } else {
+                    // only send to dashboard if the client IDs match
+                    if (_.isEqual(filterClient.clientId, socket.clientId)) {
+                        sendToDashboard = true;
+                    }
+                }
+
+                if (sendToDashboard) {
+                    io.to(dashboardClient).emit('client:emit:event', data);
+                }
             }
         }, ignoreDashboard);
 
         // when a client registers an on event
         socket.on('client:on', function(data) {
-            io.to(dashboardClient).emit('client:on:event', {
-                socketId: socket.id,
-                name: data.eventName
-            });
+            var sendToDashboard = false;
+
+            if (_.isUndefined(filterClient) || _.isNull(filterClient)) {
+                sendToDashboard = true;
+            } else {
+                // only send to dashboard if the client IDs match
+                if (_.isEqual(filterClient.clientId, socket.clientId)) {
+                    sendToDashboard = true;
+                }
+            }
+
+            if (sendToDashboard) {
+                io.to(dashboardClient).emit('client:on:event', {
+                    socketId: socket.id,
+                    name: data.eventName
+                });
+            }
         }, ignoreDashboard);
 
         // retrieve client data
@@ -152,11 +200,6 @@ module.exports = function() {
             };
             io.to(dashboardClient).emit('client:data', data);
         }, ignoreDashboard);
-
-        /*socket.on('chart:emits:plot', function(data) {
-            // save to database
-            db.addEmitChart(data.timestamp, data.clientEmits, data.serverEmits);
-        });*/
 
         // remove a connected client on disconnect and alert the dashboard client
         socket.on('disconnect', function() {
@@ -169,13 +212,19 @@ module.exports = function() {
 
         // get client chart
         function getClientChart() {
+            var currentTimestamp = moment();
+
             promise.all([
+                db.getServerEmitsChartData(currentTimestamp, filterClient === null ? null : filterClient.clientId),
+                db.getClientEmitsChartData(currentTimestamp, filterClient === null ? null : filterClient.clientId),
                 db.getServerEmitsForClientChartData(filterClient === null ? null : filterClient.clientId),
                 db.getClientEmitsForClientChartData(filterClient === null ? null : filterClient.clientId)
             ]).then(function(res) {
                 io.to(dashboardClient).emit('client:chart:update', {
-                    serverData: res[0],
-                    clientData: res[1]
+                    serverEmitData: res[0],
+                    clientEmitData: res[1],
+                    serverData: res[2],
+                    clientData: res[3]
                 });
             });
         }

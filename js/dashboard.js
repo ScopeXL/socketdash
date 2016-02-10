@@ -1,7 +1,5 @@
-var app = angular.module('socketDash', []);
-
-app.controller('DashboardCtrl', ['$scope', '$location',
-    function($scope, $location) {
+app.controller('DashboardCtrl', ['$scope', '$location', 'ChartSvc',
+    function($scope, $location, ChartSvc) {
         // show random number to indicate new connection
         console.log(Math.random());
         // connect to the socket
@@ -17,7 +15,7 @@ app.controller('DashboardCtrl', ['$scope', '$location',
         var tmpClientEmits = 0;
         var tmpServerEmits = 0;
         // chart for emit events
-        var chart;
+        var emitTimelineChart;
         // chart for specific user events
         var userChart;
         // emit event array
@@ -37,15 +35,15 @@ app.controller('DashboardCtrl', ['$scope', '$location',
             $scope.serverUptime = moment(serverStartedAt).fromNow(true);
 
             var x = moment().unix(); // current time
-            chart.series[0].addPoint([x * 1000, tmpClientEmits], true, true);
-            chart.series[1].addPoint([x * 1000, tmpServerEmits], true, true);
+            emitTimelineChart.series[0].addPoint([x * 1000, tmpClientEmits], true, true);
+            emitTimelineChart.series[1].addPoint([x * 1000, tmpServerEmits], true, true);
 
             // reset the temporary emit counters
             tmpClientEmits = 0;
             tmpServerEmits = 0;
 
             // redraw the user column chart
-            socket.emit('client:chart:get');
+            socket.emit('client:chart:get', null, ignoreDashboard);
         }, 10000);
 
         // Fetch event data
@@ -67,14 +65,17 @@ app.controller('DashboardCtrl', ['$scope', '$location',
                     if (c.filtered) {
                         c.filtered = false;
                         // remove the filter
-                        socket.emit('client:data:filter', null);
+                        $scope.pageTitle = '';
+                        socket.emit('client:data:filter', null, ignoreDashboard);
                     } else {
                         c.filtered = true;
                         // only return data pertaining to this client
-                        socket.emit('client:data:filter', client);
+                        $scope.pageTitle = 'Client: ' + c.clientId;
+                        socket.emit('client:data:filter', client, ignoreDashboard);
                     }
                 } else {
                     c.filtered = false;
+                    $scope.pageTitle = '';
                 }
             });
         };
@@ -114,156 +115,21 @@ app.controller('DashboardCtrl', ['$scope', '$location',
             $scope.numClientEmits = data.totalClientEmits;
             $scope.$apply();
 
-            $('#user-chart').highcharts('StockChart', {
-                chart: {
-                    alignTicks: false
-                },
-                xAxis: {
-                    labels: {
-                        rotation: -45
-                    },
-                    dateTimeLabelFormats: {
-                        millisecond: '%H:%M:%S.%L',
-                        second: '%l:%M:%S%P',
-                        minute: '%l:%M%P',
-                        hour: '%l:%M%P',
-                        day: '%e. %b',
-                        week: '%e. %b',
-                        month: '%b \'%y',
-                        year: '%Y'
-                    }
-                },
-                rangeSelector: {
-                    selected: 1
-                },
-                navigator: {
-                    enabled: true
-                },
-                scrollbar: {
-                    enabled: false
-                },
-                title: {
-                    text: 'AAPL Stock Volume'
-                },
-                series: [
-                    {
-                        type: 'column',
-                        name: 'Server Emits',
-                        data: data.clientServerEmits,
-                        dataGrouping: {
-                            units: [[
-                                'hour', // unit name
-                                [1] // allowed multiples
-                            ], [
-                                'month',
-                                [1, 2, 3, 4, 6]
-                            ]]
-                        }
-                    },
-                    {
-                        type: 'column',
-                        name: 'Client Emits',
-                        data: data.clientClientEmits,
-                        dataGrouping: {
-                            units: [[
-                                'hour', // unit name
-                                [1] // allowed multiples
-                            ], [
-                                'month',
-                                [1, 2, 3, 4, 6]
-                            ]]
-                        }
-                    }
-                ]
+            userChart = ChartSvc.buildColumnChart({
+                clientServerEmits: data.clientServerEmits,
+                clientClientEmits: data.clientClientEmits
             });
-            userChart = $('#user-chart').highcharts();
 
-            // Create the chart
-            var chartOptions = {
-                chart: {
-                    alignTicks: true
-                },
-                xAxis: {
-                    labels: {
-                        rotation: -45
-                    },
-                    alternateGridColor: '#eee',
-                    dateTimeLabelFormats: {
-                        millisecond: '%H:%M:%S.%L',
-                        second: '%l:%M:%S%P',
-                        minute: '%l:%M%P',
-                        hour: '%l:%M%P',
-                        day: '%e. %b',
-                        week: '%e. %b',
-                        month: '%b \'%y',
-                        year: '%Y'
-                    }
-                },
-                rangeSelector: {
-                    buttons: [{
-                        count: 1,
-                        type: 'minute',
-                        text: '1M'
-                    }, {
-                        count: 5,
-                        type: 'minute',
-                        text: '5M'
-                    }, {
-                        count: 10,
-                        type: 'minute',
-                        text: '10M'
-                    }, {
-                        count: 15,
-                        type: 'minute',
-                        text: '15M'
-                    }, {
-                        count: 30,
-                        type: 'minute',
-                        text: '30M'
-                    }, {
-                        count: 1,
-                        type: 'hour',
-                        text: '1H'
-                    }, {
-                        type: 'all',
-                        text: 'All'
-                    }],
-                    inputEnabled: false,
-                    selected: 3
-                },
-                plotOptions: {
-                    line: {
-                        states: {
-                            hover: {
-                                lineWidthPlus: 0
-                            }
-                        }
-                    }
-                },
-                exporting: {
-                    enabled: false
-                },
-                scrollbar: {
-                    enabled: false
-                },
-                series: [
-                    {
-                        name: 'Client',
-                        data: data.clientChartData
-                    },
-                    {
-                        name: 'Server',
-                        data: data.serverChartData
-                    },
-                ]
-            };
-
-            $('#chart').highcharts('StockChart', chartOptions);
-            chart = $('#chart').highcharts();
+            emitTimelineChart = ChartSvc.buildEmitTimeline({
+                clientChartData: data.clientChartData,
+                serverChartData: data.serverChartData
+            });
         }, ignoreDashboard);
 
         socket.on('client:chart:update', function(chartData) {
-            userChart.series[0].setData(chartData.serverData, false);
+            //emitTimelineChart.series[0].setData(chartData.serverEmitData, true);
+            //emitTimelineChart.series[1].setData(chartData.clientEmitData, true);
+            userChart.series[0].setData(chartData.serverData, true);
             userChart.series[1].setData(chartData.clientData, true);
         }, ignoreDashboard);
 

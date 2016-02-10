@@ -33,5 +33,5 @@ node_modules
 .node_repl_history
 
 # SQLite database
-lib/db.sqlite3
-lib/db.sqlite3-journal
+lib/db/db.sqlite3
+lib/db/db.sqlite3-journal

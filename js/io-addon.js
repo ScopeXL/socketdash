@@ -38,6 +38,7 @@ io = function(url, opts) {
                 eventName: eventName,
                 callback: callback
             });
+            return result2;
         }
     };
 

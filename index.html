@@ -12,9 +12,14 @@
         <div class="panels">
             <div class="container-fluid">
                 <div class="row">
+                    <div class="col-xs-12" ng-show="pageTitle">
+                        <div class="page-title">{{pageTitle}}</div>
+                    </div>
                     <div class="col-xs-12">
                         <div id="user-chart" style="height:300px;"></div>
-                        <div id="chart" style="height:300px;"></div>
+                    </div>
+                    <div class="col-xs-12">
+                        <div id="emit-timeline-chart" style="height:300px;"></div>
                     </div>
                     <div class="col-xs-12 col-sm-6 col-md-6">
                         <div class="panel panel-default">
@@ -121,6 +126,14 @@
             <div class="container-fluid">
                 <div class="row">
                     <div class="col-xs-12">
+                        <div class="list-group">
+                            <a href="#" class="list-group-item active">Dashboard</a>
+                            <a href="#" class="list-group-item">Events</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-xs-12">
                         <div class="panel panel-default">
                             <div class="panel-heading">
                                 Server
@@ -181,6 +194,8 @@
     <script type="text/javascript" src="/assets/js/bootstrap"></script>
     <script type="text/javascript" src="/assets/js/moment"></script>
     <script type="text/javascript" src="/assets/js/highstock"></script>
+    <script type="text/javascript" src="/assets/js/app.js"></script>
+    <script type="text/javascript" src="/assets/js/components/chart-svc.js"></script>
     <script type="text/javascript" src="/assets/js/dashboard.js"></script>
 </body>
 </html>
